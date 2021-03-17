@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+
+set -e
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+BASEDIR=$(realpath -s $DIR/../..)
+
+RAILS_ENV=$1; shift
+
+if [ "$RAILS_ENV" != "production" ]; then
+  echo "Missing Rails env."
+  ERROR=1
+fi
+
+(cd tf && terraform init >/dev/null)
+TF_OUTPUTS=$(cd tf && terraform output -json)
+CLUSTER=$(echo "$TF_OUTPUTS" | jq -r .cluster_id.value)
+REGION=$(echo "$TF_OUTPUTS" | jq -r .aws_region.value)
+
+echo "Stopping any stray $RAILS_ENV shell tasks..."
+allTasks=$(aws ecs list-tasks \
+  --profile serverless-rails-demo \
+  --region $REGION \
+  --cluster sr-$RAILS_ENV | jq -r '.taskArns[]' | tr '\n' ' ')
+
+if [[ -z "${allTasks// }" ]]; then
+  # nothing to do
+  exit 0
+fi
+
+shellTasks=$(aws ecs describe-tasks \
+  --profile serverless-rails-demo \
+  --region "$REGION" \
+  --tasks $allTasks \
+  --cluster sr-$RAILS_ENV | \
+  jq -r ".tasks[] | select(.group == \"family:$RAILS_ENV-shell-task\") | .taskArn")
+
+for taskArn in $shellTasks; do
+  aws ecs stop-task \
+    --profile serverless-rails-demo \
+    --region "$REGION" \
+    --task "$taskArn" \
+    --cluster "$CLUSTER" > /dev/null
+done

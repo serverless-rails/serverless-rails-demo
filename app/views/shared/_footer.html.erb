@@ -1,0 +1,14 @@
+<footer class="footer text-muted bg-light">
+  <div class="container text-center">
+    <span>
+      👋 from <a href='https://serverless-rails.com' target='_blank'>Serverless Rails</a>
+      <% if RELEASE %>
+        &mdash;
+        <small class='text-muted'>RELEASE</small>
+        <a href="https://github.com/serverless-rails/serverless-rails-demo/commit/<%= RELEASE %>" target="_blank">
+          <b><tt><%= RELEASE[0..7] %></tt></b>
+        </a>
+      <% end %>
+    </span>
+  </div>
+</footer>

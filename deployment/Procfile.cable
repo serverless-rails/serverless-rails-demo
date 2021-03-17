@@ -1,0 +1,2 @@
+anycable: cd /sr && bundle exec anycable
+ws: cd /sr && bundle exec /bin/anycable-go --port 3334 --host 0.0.0.0 --headers=cookie,origin

@@ -1,0 +1,11 @@
+<span class="user-presence user-presence-<%= user.id %> <%= "online" if user.online? || current_user == user %>">
+  <span class="dot"></span>
+  <% if !(defined? link) || link %>
+    <%= link_to user.name, profile_path(user) %>
+  <% else %>
+    <%= user.name %>
+  <% end -%>
+  <% if current_user && current_user.watching?(user) && user != @user %>
+    &nbsp;<small><%= icon('fas', 'bell', class: "text-dark", title: "Subscribed") %></small>
+  <% end -%>
+</span>

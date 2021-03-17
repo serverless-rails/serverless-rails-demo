@@ -1,0 +1,26 @@
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div class="d-flex align-items-center">
+    <h2 class="mr-3"><%= @user.name %>'s Documents</h2>
+    <% if current_user && @user != current_user %>
+      <% if current_user.watching?(@user) %>
+        <%= button_to unsubscribe_profile_publish_watches_path(@user), class: "btn btn-sm btn-outline-primary" do %>
+          <%= icon('fas', 'bell-slash') %> Unsubscribe
+        <% end %>
+      <% else %>
+        <%= button_to subscribe_profile_publish_watches_path(@user), class: "btn btn-sm btn-outline-primary" do %>
+          <%= icon('fas', 'bell') %> Subscribe
+        <% end %>
+      <% end -%>
+    <% end -%>
+  </div>
+  <div class="text-muted ml-3 user-presence user-presence-<%= @user.id %> <%= 'online' if @user.online? || @user == current_user %>">
+    <%= @user.name %> is
+    <span class='ml-2 badge badge-pill'><%= @user.online? ? 'online' : 'offline' %></span>
+  </div>
+</div>
+
+<%= render partial: 'documents/table', locals: { show_user: false, documents: @user.documents } %>
+
+<script>
+  window.USER_PROFILE_ID = <%= @user.id.to_json %>;
+</script>

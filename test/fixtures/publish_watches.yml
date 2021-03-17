@@ -1,0 +1,9 @@
+one:
+  publisher: one
+  watcher: two
+  last_notified_at: "<%= 10.days.ago %>"
+
+two:
+  publisher: two
+  watcher: one
+  last_notified_at: "<%= 10.seconds.ago %>"

@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+
+set -e
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+BASEDIR=$(realpath -s $DIR/../..)
+ORPHANS_FILE=$BASEDIR/.ecs-orphans
+KEY_PATH=$(realpath -s $BASEDIR/deployment/ecs)
+
+RAILS_ENV=${1:-$RAILS_ENV}
+ERROR=0
+
+if ! hash jq 2>/dev/null; then
+  echo "This script requires 'jq' to be installed."
+  ERROR=1
+fi
+
+if [ ! -f $KEY_PATH 2>/dev/null ]; then
+  echo "SSH private key is needed at $KEY_PATH"
+  ERROR=1
+fi
+
+if [ -z "$RAILS_ENV" ]; then
+  RAILS_ENV=production
+fi
+
+if [ $ERROR -ne 0 ]; then
+  exit 1
+fi
+
+(cd tf && terraform init >/dev/null)
+TF_OUTPUTS=$(cd tf && terraform output -json)
+CLUSTER=$(echo "$TF_OUTPUTS" | jq -r .cluster_id.value)
+TASK=$(echo "$TF_OUTPUTS" | jq -r .shell_task.value)
+REGION=$(echo "$TF_OUTPUTS" | jq -r .aws_region.value)
+SUBNETS=$(echo "$TF_OUTPUTS" | jq -r .public_subnets.value)
+ECS_SECURITY_GROUP=$(echo "$TF_OUTPUTS" | jq .ecs_security_group.value)
+SSH_SECURITY_GROUP=$(echo "$TF_OUTPUTS" | jq .ssh_security_group.value)
+
+task_info=$(aws ecs describe-task-definition \
+  --profile serverless-rails-demo \
+  --region "$REGION" \
+  --task-definition "$TASK")
+revision=$(echo "$task_info" | jq -r .taskDefinition.revision)
+tag=$(echo "$task_info" | jq -r .taskDefinition.containerDefinitions[0].image | cut -d':' -f2)
+
+echo "Starting $RAILS_ENV shell task (rev: $revision, tag: $tag)..."
+run_task_result=$(aws ecs run-task \
+  --profile serverless-rails-demo \
+  --region "$REGION" \
+  --task-definition "$TASK" \
+  --launch-type "FARGATE" \
+  --platform-version "1.4.0" \
+  --network-configuration "awsvpcConfiguration={subnets=$SUBNETS,securityGroups=[$ECS_SECURITY_GROUP, $SSH_SECURITY_GROUP],assignPublicIp=\"ENABLED\"}" \
+  --cluster "$CLUSTER")
+
+run_task_failures=$(echo "$run_task_result" | jq '.failures[]')
+[ -n "$run_task_failures" ] && abort "$run_task_failures"
+
+task_arn=$(echo "$run_task_result" | jq -r '.tasks[0].taskArn')
+aws ecs wait tasks-running \
+  --profile serverless-rails-demo \
+  --cluster "$CLUSTER" \
+  --region "$REGION" \
+  --tasks "$task_arn"
+sleep 1
+
+echo "Started. Connecting..."
+
+task_description=$(aws ecs describe-tasks \
+  --profile serverless-rails-demo \
+  --cluster "$CLUSTER" \
+  --tasks "$task_arn" \
+  --region "$REGION")
+eni_id=$(echo "$task_description" | \
+  jq -r '.tasks[0].attachments[0].details[] | select(.name == "networkInterfaceId").value')
+
+public_ip=$(aws ec2 describe-network-interfaces \
+  --profile serverless-rails-demo \
+  --region "$REGION" \
+  --network-interface-ids "$eni_id" | \
+    jq -r '.NetworkInterfaces[0].Association.PublicIp')
+
+echo "SCP command (might crash the container :/)"
+echo "  scp -o \"UserKnownHostsFile=/dev/null\" -o \"StrictHostKeyChecking=no\" -P 2222 -i $KEY_PATH \$FILE app@$public_ip:"
+echo ""
+
+ssh \
+  -o "UserKnownHostsFile=/dev/null" \
+  -o "StrictHostKeyChecking=no" \
+  -o "ConnectTimeout=30" \
+  -o "ConnectionAttempts=5" \
+  -p 2222 \
+  -i $KEY_PATH \
+  app@$public_ip
+
+echo "Cleaning up..."
+
+aws ecs stop-task \
+  --profile serverless-rails-demo \
+  --region "$REGION" \
+  --task "$task_arn" \
+  --cluster "$CLUSTER" > /dev/null
+aws ecs wait tasks-stopped \
+  --profile serverless-rails-demo \
+  --cluster "$CLUSTER" \
+  --tasks "$task_arn" \
+  --region "$REGION"
+
+echo "DONE"
+exit 0

@@ -1,0 +1,16 @@
+.terraform*
+.bundle
+.git
+.github
+etc
+log
+node_modules
+provision
+test
+tf
+tmp
+*.log
+*.rdb
+*.dump
+*.backup
+*.retry

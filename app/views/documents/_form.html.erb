@@ -1,0 +1,35 @@
+<%= form_with(model: document, local: true) do |form| %>
+  <% if document.errors.any? %>
+    <div id="error_explanation">
+      <h2><%= pluralize(document.errors.count, "error") %> prohibited this document from being saved:</h2>
+
+      <ul>
+      <% document.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="form-group">
+    <%= form.label :title %>
+    <%= form.text_field :title, class: 'form-control' %>
+  </div>
+
+  <div class="form-group">
+    <%= form.label :body %>
+    <%= form.rich_text_area :body %>
+  </div>
+
+  <div class="form-group">
+    <% if document.persisted? %>
+      <div class="float-right">
+        <%= link_to 'Destroy', document, method: :delete, class: "text-danger", data: { confirm: 'Are you sure?' } %>
+      </div>
+    <% end %>
+
+    <%= form.submit class: 'btn btn-primary' %>
+
+    <%= link_to "Cancel", document.persisted? ? document : documents_path, class: "btn btn-link text-secondary" %>
+  </div>
+<% end %>

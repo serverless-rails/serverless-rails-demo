@@ -1,0 +1,19 @@
+<title>Serverless Rails Demo</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<%= csrf_meta_tags %>
+<%= action_cable_meta_tag %>
+<%= csp_meta_tag %>
+
+<%= stylesheet_link_tag 'application', media: 'all', 'data-turbolinks-track': 'reload' %>
+
+<script>
+  window.CURRENT_USER_ID = <%= (current_user&.id || nil).to_json.html_safe %>;
+</script>
+<%= javascript_pack_tag 'application', 'data-turbolinks-track': 'reload' %>
+
+<link
+  href="https://fonts.googleapis.com/css?family=Dancing+Script:700|Inter:300,400,600&amp;display=swap"
+  rel="stylesheet"
+/>

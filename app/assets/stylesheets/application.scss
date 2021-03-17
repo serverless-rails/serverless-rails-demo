@@ -1,0 +1,60 @@
+@import "font-awesome-sprockets";
+@import "font-awesome";
+@import "_bootstrap-overrides";
+@import "bootstrap";
+@import "actiontext";
+@import "documents";
+@import "jumpstart/sticky-footer";
+
+// Fixes bootstrap nav-brand container overlap
+@include media-breakpoint-down(xs) {
+  .container {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+body > .alert {
+  margin-bottom: 0;
+}
+
+.navbar-brand {
+  font-family: Dancing Script;
+  text-shadow:
+    0 0 6px rgba(202,228,225,0.92),
+    0 0 30px rgba(202,228,225,0.34),
+    0 0 12px rgba(30,132,242,0.52),
+    0 0 21px rgba(30,132,242,0.92),
+    0 0 34px rgba(30,132,242,0.78),
+    0 0 54px rgba(30,132,242,0.92);
+}
+.nav-link {
+  color: $navbar-dark-brand-color !important;
+}
+
+.page-footer {
+  margin-top: 50px;
+  margin-bottom: 20px;
+}
+
+.user-presence {
+  display: flex;
+  align-items: center;
+  .dot {
+    display: block;
+    width: 8px;
+    height: 8px;
+    margin-right: 3px;
+    border-radius: 1000px;
+    background-color: #BBB;
+  }
+  .badge {
+    background-color: #BBB;
+    color: white;
+  }
+
+  &.online {
+    .dot { background-color: #62B500; }
+    .badge { background-color: #62B500; }
+  }
+}
