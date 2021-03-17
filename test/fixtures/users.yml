@@ -1,0 +1,11 @@
+one:
+  name: "Test User"
+  email: "test@test.com"
+  encrypted_password: "<%= Devise::Encryptor.digest(User, '123abc') %>"
+  confirmed_at: "<%= 1.year.ago %>"
+
+two:
+  name: "Another User"
+  email: "test2@test.com"
+  encrypted_password: "<%= Devise::Encryptor.digest(User, 'abc123') %>"
+  confirmed_at: "<%= 1.year.ago %>"

@@ -1,0 +1,17 @@
+<%= content_tag :tr, id: "document-row-#{document_row.id}", class: dom_class(document_row) do %>
+  <td class="position-relative align-middle"><%= link_to document_row.title, document_row, class: 'stretched-link' %></td>
+  <% if !(defined? show_user) || show_user %>
+    <td width='200'>
+      <div class="d-flex">
+        <span class="mr-2 text-muted">by</span>
+        <%= render partial: 'profiles/badge', locals: { link: true, user: document_row.user } %>
+      </div>
+    </td>
+  <% end %>
+  <td width='250'>
+    <small class="text-muted">
+      last updated
+      <span><%= time_ago_in_words(document_row.updated_at) %></span> ago
+    </small>
+  </td>
+<% end %>

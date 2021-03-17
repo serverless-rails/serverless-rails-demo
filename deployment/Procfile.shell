@@ -1,0 +1,4 @@
+# -D    do not detach/daemonise
+# -e    write logs to stderr
+# -f    use config file
+sshd: env | egrep "^(DATABASE_URL|AWS_|SECRET_KEY_BASE|SENDGRID_API_KEY|REDIS_URL)" | while read line; do echo "export $line"; done >> ~/.profile && /usr/sbin/sshd -De -f /conf/sshd_config

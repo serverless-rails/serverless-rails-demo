@@ -1,0 +1,17 @@
+<p>Hello <%= @watcher.name %>,</p>
+
+<p>
+  You subscribed to document updates from
+  <a href="<%= profile_url(@publisher) %>"><%= @publisher.name %></a>.
+  Here are the updates since
+  <%= (@pw.last_notified_at || @pw.created_at).to_s(:month_and_day_with_ordinal) %>:
+</p>
+
+<ul>
+  <% @documents.each do |document| %>
+    <li>
+      <a href="<%= document_url(document) %>"><%= document.title %></a>
+      was <%= document.created_at > @pw.cutoff ? 'created' : 'updated' %>!
+    </li>
+  <% end %>
+</ul>

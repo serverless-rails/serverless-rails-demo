@@ -1,0 +1,7 @@
+<div class="table-responsive">
+  <table class="table table-bordered" id="document-table">
+    <tbody>
+      <%= render partial: 'documents/document_row', collection: documents.includes(:user) %>
+    </tbody>
+  </table>
+</div>

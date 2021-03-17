@@ -1,0 +1,41 @@
+{
+  "essential": true,
+  "image": "${repo_url}:latest",
+  "networkMode": "awsvpc",
+  %{ if log_group != false }
+  "logConfiguration": {
+    "logDriver": "awslogs",
+    "options": {
+      "awslogs-group": "${log_group}",
+      "awslogs-region": "${region}",
+      "awslogs-stream-prefix": "ecs"
+    }
+  },
+  %{ endif }
+  "secrets": [
+    {
+      "name": "DATABASE_URL",
+      "valueFrom": "arn:aws:ssm:${region}:${account_id}:parameter/${env}/DATABASE_URL"
+    },
+    {
+      "name": "REDIS_URL",
+      "valueFrom": "arn:aws:ssm:${region}:${account_id}:parameter/${env}/REDIS_URL"
+    },
+    {
+      "name": "SENDGRID_API_KEY",
+      "valueFrom": "arn:aws:ssm:${region}:${account_id}:parameter/${env}/SENDGRID_API_KEY"
+    },
+    {
+      "name": "AWS_ACCESS_KEY_ID",
+      "valueFrom": "arn:aws:ssm:${region}:${account_id}:parameter/${env}/AWS_ACCESS_KEY_ID"
+    },
+    {
+      "name": "AWS_SECRET_ACCESS_KEY",
+      "valueFrom": "arn:aws:ssm:${region}:${account_id}:parameter/${env}/AWS_SECRET_ACCESS_KEY"
+    },
+    {
+      "name": "SECRET_KEY_BASE",
+      "valueFrom": "arn:aws:ssm:${region}:${account_id}:parameter/${env}/SECRET_KEY_BASE"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+<div id="document-show-<%= @document.id %>">
+  <div class="d-flex align-items-start justify-content-between mb-3">
+    <div class="d-flex align-items-end">
+      <h1 class='m-0'><%= @document.title %></h1>
+      <h6 class="ml-2 text-muted d-flex">
+        <span class='mr-1'>by</span>
+        <%= render partial: 'profiles/badge', locals: { link: true, user: @document.user } %>
+      </h6>
+    </div>
+
+    <div class='flex-shrink-0 mt-2'>
+      <% if @document.user == current_user %>
+        <%= link_to 'edit', edit_document_path(@document), class: 'btn btn-light' %>
+      <% end %>
+      <%= link_to 'back', root_path, class: 'btn btn-light' %>
+    </div>
+  </div>
+
+
+  <div class='body'><%= @document.body %></div>
+  <% if @document.body.blank? %>
+    <div class='text-center alert alert-warning m-5 p-5 text-dark'>This document is empty.</div>
+  <% end %>
+</div>

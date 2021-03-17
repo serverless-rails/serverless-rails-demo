@@ -1,0 +1,64 @@
+#!/bin/bash
+
+set -e
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+BASEDIR=$(realpath -s $DIR/../..)
+
+RAILS_ENV=${1:-$RAILS_ENV}
+ERROR=0
+
+if ! hash jq 2>/dev/null; then
+  echo "This script requires 'jq' to be installed."
+  ERROR=1
+fi
+
+if [ -z "$RAILS_ENV" ]; then
+  echo "Specify RAILS_ENV (var or first arg)."
+  ERROR=1
+fi
+
+if [ $ERROR -ne 0 ]; then
+  exit 1
+fi
+
+(cd tf && terraform init >/dev/null)
+TF_OUTPUTS=$(cd tf && terraform output -json)
+REGION=$(echo "$TF_OUTPUTS" | jq -r .aws_region.value)
+CLUSTER=$(echo "$TF_OUTPUTS" | jq -r .cluster_id.value)
+TASK=$(echo "$TF_OUTPUTS" | jq -r .migrate_task.value)
+SUBNETS=$(echo "$TF_OUTPUTS" | jq -r .public_subnets.value)
+SECURITY_GROUP=$(echo "$TF_OUTPUTS" | jq -r .ecs_security_group.value)
+
+echo "Starting database migration..."
+run_task_result=$(aws ecs run-task \
+  --profile serverless-rails-demo \
+  --region "$REGION" \
+  --task-definition "$TASK" \
+  --launch-type "FARGATE" \
+  --platform-version "1.4.0" \
+  --network-configuration "awsvpcConfiguration={subnets=$SUBNETS,securityGroups=[\"$SECURITY_GROUP\"],assignPublicIp=\"ENABLED\"}" \
+  --cluster "$CLUSTER")
+
+run_task_failures=$(echo "$run_task_result" | jq '.failures[]')
+[ -n "$run_task_failures" ] && abort "$run_task_failures"
+
+echo "Waiting for migration to run..."
+
+task_arn=$(echo "$run_task_result" | jq -r '.tasks[0].taskArn')
+aws ecs wait tasks-running \
+  --profile serverless-rails-demo \
+  --cluster "$CLUSTER" \
+  --tasks "$task_arn" \
+  --region "$REGION"
+
+echo "Database migration is running..."
+
+aws ecs wait tasks-stopped \
+  --profile serverless-rails-demo \
+  --cluster "$CLUSTER" \
+  --tasks "$task_arn" \
+  --region "$REGION"
+
+echo "DONE"
+exit 0

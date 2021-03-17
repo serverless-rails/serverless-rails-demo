@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+BASEDIR="$DIR/.."
+
+RAILS_ENV=$1
+TAG=$2
+
+ERROR=0
+
+if [ -z "$RAILS_ENV" ]; then
+  echo "Specify RAILS_ENV."
+  ERROR=1
+fi
+
+if [ -z "$TAG" ]; then
+  echo "Specify TAG."
+  ERROR=1
+fi
+
+if [ $ERROR -ne 0 ]; then
+  exit 1
+fi
+
+(cd tf && terraform init >/dev/null)
+TF_OUTPUTS=$(cd tf && terraform output -json)
+CLUSTER=$(echo "$TF_OUTPUTS" | jq -r .cluster_id.value)
+REGION=$(echo "$TF_OUTPUTS" | jq -r .aws_region.value)
+
+echo "Waiting for rollout..."
+while true; do
+  taskArns=$(aws ecs list-tasks \
+    --profile serverless-rails-demo \
+    --region $REGION \
+    --cluster $CLUSTER | \
+    jq -r '.taskArns[]')
+
+  found=0
+  for taskArn in $taskArns; do
+    task=$(aws ecs describe-tasks \
+      --profile serverless-rails-demo \
+      --region $REGION \
+      --tasks $taskArn \
+      --cluster $CLUSTER)
+    image=$(echo "$task" | jq -r '.tasks[0].containers[0].image')
+    group=$(echo "$task" | jq -r '.tasks[0].group')
+
+    # don't consider shell tasks
+    if [ "$group" != "family:$RAILS_ENV-shell-task" ]; then
+      if echo "$image" | grep -q "$TAG" -; then
+        continue
+      else
+        found=1
+      fi
+    fi
+  done
+
+  if [ $found == 1 ]; then
+    echo -n 'x'
+  else
+    echo -e "\nDeployment Complete."
+    exit 0
+  fi
+done

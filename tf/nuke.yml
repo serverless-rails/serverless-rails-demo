@@ -1,0 +1,18 @@
+---
+regions:
+- ca-central-1
+
+account-blocklist:
+- 0000000000
+
+resource-types:
+  excludes:
+  - S3Object
+  - S3Bucket
+  - IAMRole
+  - IAMUser
+  - IAMUserPolicyAttachment
+  - IAMUserAccessKey
+
+accounts:
+  723333431049: {}

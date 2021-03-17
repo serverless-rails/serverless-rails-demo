@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+
+set -e
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+BASEDIR=$(realpath -s $DIR/..)
+RAILS_ENV=$1; shift
+TAG=$1; shift
+ERROR=0
+
+function show_help {
+  echo -e
+  echo "  Usage: bin/deploy ENVIRONMENT SHA -mc"
+  echo "     -m    Do not perform database migration"
+  echo "     -c    Do not wait for the deployment to complete"
+}
+
+if ! hash jq 2>/dev/null; then
+  echo "This script requires 'jq' to be installed."
+  ERROR=1
+fi
+
+if [ "$RAILS_ENV" != "production" ]; then
+  echo "Missing Rails env."
+  ERROR=1
+fi
+
+if [ -z "$TAG" ]; then
+  echo "Missing tag."
+  ERROR=1
+fi
+
+if [ $ERROR -ne 0 ]; then
+  show_help
+  exit 1
+fi
+
+OPTIND=1
+
+while getopts "hm" opt; do
+  case "$opt" in
+  h)
+    show_help
+    exit 0
+    ;;
+  m)
+    skip_migrate=1
+    ;;
+  c)
+    skip_check=1
+    ;;
+  esac
+done
+
+shift $((OPTIND-1))
+[ "${1:-}" = "--" ] && shift
+
+(cd tf && terraform init >/dev/null)
+TF_OUTPUTS=$(cd tf && terraform output -json)
+CLUSTER=$(echo "$TF_OUTPUTS" | jq -r .cluster_id.value)
+ECR_PREFIX=$(echo "$TF_OUTPUTS" | jq -r .repo_url.value)
+
+# `shell` first, so it can be used for debugging
+# then `migrate`, so the rest can be aborted on failure
+for task in shell migrate job web cable worker; do
+  task_definition_name=$(echo "$TF_OUTPUTS" | jq -r .${task}_task.value)
+  service_name=$(echo "$TF_OUTPUTS" | jq -r .${task}_service.value)
+
+  echo "Updating $task task definition..."
+  # only run 1 container per task, so update image
+  task_defn=$(aws ecs describe-task-definition \
+    --profile serverless-rails-demo \
+    --task-definition $task_definition_name | \
+      jq .taskDefinition | \
+      jq "(.containerDefinitions[] | .image) |= \"$ECR_PREFIX:$TAG\"" |
+      jq "del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)")
+
+  new_revision_result=$(aws ecs register-task-definition \
+    --profile serverless-rails-demo \
+    --cli-input-json "$task_defn")
+
+  new_revision_number=$(echo "$new_revision_result" | jq -r '.taskDefinition.revision')
+  new_arn=$(echo "$new_revision_result" | jq -r '.taskDefinition.taskDefinitionArn')
+
+  image=$(echo "$new_revision_result" | \
+    jq -r '.taskDefinition.containerDefinitions[0].image' | \
+    cut -d':' -f2)
+  echo "Registered revision $new_revision_number with image $image."
+
+  if [ "$service_name" != "null" ]; then
+    echo "Deploying new definition to $task service..."
+    deploy_result=$(aws ecs update-service \
+      --profile serverless-rails-demo \
+      --cluster $CLUSTER \
+      --service $service_name \
+      --task-definition $task_definition_name:$new_revision_number)
+    echo -e "Updated $service_name.\n"
+  else
+    if [ "$task" == "migrate" ] && [ -z $skip_migrate ]; then
+      # run database migration after updating the migrate task definition
+      $BASEDIR/bin/ecs/migrate $RAILS_ENV
+      if [ $? -ne 0 ]; then
+        echo -e "Database migration failed! Aborting update of services.\n"
+        exit 1
+      fi
+    elif [ "$task" == "job" ]; then
+      # update scheduled jobs after updating job task definition
+      echo "Deploying updated scheduled event targets..."
+      for rule in every_1_hour; do
+        rule_name=$(echo "$TF_OUTPUTS" | jq -r .${rule}_rule.value)
+        echo -n "    Updating $rule_name... "
+        targets=$(aws events list-targets-by-rule \
+          --profile serverless-rails-demo \
+          --rule $rule_name | \
+            jq .Targets | \
+            jq "(.[].EcsParameters.TaskDefinitionArn) |= \"$new_arn\"")
+        new_targets=$(aws events put-targets \
+          --profile serverless-rails-demo \
+          --rule $rule_name \
+          --targets "$targets")
+        echo "DONE"
+      done
+    fi
+    echo
+  fi
+done
+
+echo "Release published."
+
+if [ -z $skip_check ]; then
+  $BASEDIR/bin/ecs/check-deploy-status $RAILS_ENV $TAG
+fi
