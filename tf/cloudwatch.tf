@@ -64,7 +64,7 @@ resource "aws_cloudwatch_metric_alarm" "rds-cpu" {
   alarm_name          = "${terraform.workspace}-rds-cpu"
   alarm_description   = "CPU Usage on ${terraform.workspace}/${aws_rds_cluster.db.cluster_identifier}"
   comparison_operator = "GreaterThanOrEqualToThreshold"
-  treat_missing_data  = "breaching"
+  treat_missing_data  = "ignore"
   evaluation_periods  = 3
   datapoints_to_alarm = 3
   metric_name         = "CPUUtilization"
