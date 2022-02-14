@@ -265,7 +265,7 @@ GEM
     semantic_range (3.0.0)
     sendgrid-ruby (6.4.0)
       ruby_http_client (~> 3.4)
-    sidekiq (6.2.2)
+    sidekiq (6.4.0)
       connection_pool (>= 2.2.2)
       rack (~> 2.0)
       redis (>= 4.2.0)
@@ -340,7 +340,7 @@ DEPENDENCIES
   sass-rails (>= 6)
   selenium-webdriver
   sendgrid-ruby
-  sidekiq (~> 6.1)
+  sidekiq (~> 6.4)
   turbolinks (~> 5)
   web-console (>= 4.1.0)
   webdrivers
