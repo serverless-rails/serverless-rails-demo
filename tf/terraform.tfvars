@@ -18,16 +18,20 @@ ssh_ips = {
 service_size = {
   production = {
     web = {
-      cpu = 1024
+      cpu    = 1024
       memory = 2048
     }
     worker = {
-      cpu = 512
+      cpu    = 512
       memory = 1024
     }
+    cable = {
+      cpu    = 256
+      memory = 512
+    }
     job = {
-      cpu = 1024
-      memory = 2048
+      cpu    = 512
+      memory = 1024
     }
   }
 }
@@ -36,18 +40,18 @@ service_count = {
   production = {
     web = {
       desired = 1
-      min = 1
-      max = 5
+      min     = 1
+      max     = 5
     }
     worker = {
       desired = 1
-      min = 1
-      max = 5
+      min     = 1
+      max     = 5
     }
     cable = {
       desired = 1
-      min = 1
-      max = 5
+      min     = 1
+      max     = 5
     }
   }
 }
